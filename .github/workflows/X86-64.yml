@@ -96,8 +96,7 @@ jobs:
     run: |
       cd $OPENWRT_PATH
       rm -rf feeds/luci
-      git clone https://github.com/openwrt/luci feeds/luci
-    
+      git clone https://github.com/coolsnowwolf/luci feeds/luci
     - name: 更新安装feeds
       run: |
         cd $OPENWRT_PATH
