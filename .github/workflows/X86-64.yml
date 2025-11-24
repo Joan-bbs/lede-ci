@@ -91,13 +91,13 @@ jobs:
         ccache: false
         mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
         prefix: ${{ env.OPENWRT_PATH }}
-    
-    - name: 替换luci
-    run: |
-      cd $OPENWRT_PATH
-      rm -rf feeds/luci
-      git clone https://github.com/coolsnowwolf/luci feeds/luci
-    
+
+    - name: Replace luci (use OpenWrt master)
+      run: |
+        cd $OPENWRT_PATH
+        rm -rf feeds/luci
+        git clone https://github.com/openwrt/luci feeds/luci
+
     - name: 更新安装feeds
       run: |
         cd $OPENWRT_PATH
