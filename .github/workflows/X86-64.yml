@@ -92,7 +92,7 @@ jobs:
         mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
         prefix: ${{ env.OPENWRT_PATH }}
     
-  - name: Replace luci version
+  - name: 替换luci版本
     run: |
       cd $OPENWRT_PATH
       rm -rf feeds/luci
