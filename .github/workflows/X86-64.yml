@@ -96,9 +96,9 @@ jobs:
     - name: 替换自定义feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF $OPENWRT_PATH/feeds.conf.default
-        chmod +x $DIY_P1_SH
+        chmod +x $DIY_SCRIPT
         cd $OPENWRT_PATH
-        $GITHUB_WORKSPACE/$DIY_P1_SH
+        $GITHUB_WORKSPACE/$DIY_SCRIPT
 
     - name: 更新安装feeds
       run: |
