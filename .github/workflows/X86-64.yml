@@ -66,7 +66,7 @@ jobs:
 
     - name: 合并磁盘
       # 优化4: 固定版本而不是使用 @master
-      uses: easimon/maximize-build-space@v10
+      uses: easimon/maximize-build-space@master
       with:
         swap-size-mb: 1024
         temp-reserve-mb: 100
@@ -97,7 +97,7 @@ jobs:
     - name: 缓存工具链
       if: env.CACHE_TOOLCHAIN == 'true'
       # 优化6: 固定缓存工具版本
-      uses: HiGarfield/cachewrtbuild@v1.0.0
+      uses: HiGarfield/cachewrtbuild@master
       with:
         ccache: true
         mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
@@ -172,7 +172,7 @@ jobs:
 
     - name: 发布固件到Release
       if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
-      uses: ncipollo/release-action@v2
+      uses: ncipollo/release-action@master
       with:
         allowUpdates: true
         tag: ${{ steps.tag.outputs.release_tag }}
