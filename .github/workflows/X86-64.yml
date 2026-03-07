@@ -5,10 +5,7 @@ on:
 #  schedule:
 #    - cron: 0 15 * * *
 
-# 优化1: 精细化权限而不是 write-all
-permissions:
-  contents: write
-  packages: write
+permissions: write-all
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede.git
@@ -26,8 +23,6 @@ env:
 jobs:
   Build:
     runs-on: ubuntu-22.04
-    # 优化2: 添加超时控制
-    timeout-minutes: 360
 
     steps:
     - name: 检查服务器性能
@@ -44,16 +39,11 @@ jobs:
         echo "--------------------------硬盘信息--------------------------"
         echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
 
-    # 优化3: Checkout 提前到初始化环境之前
-    - name: Checkout
-      uses: actions/checkout@v4
-
     - name: 初始化环境
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # 优化: 改进 docker 清理的错误处理
-        docker rmi $(docker images -q) 2>/dev/null || true
+        docker rmi $(docker images -q) || true
         sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
         sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
         sudo -E apt-get -y update
@@ -65,12 +55,14 @@ jobs:
         sudo -E apt-get -y install dwarves clang llvm
 
     - name: 合并磁盘
-      # 优化4: 固定版本而不是使用 @master
       uses: easimon/maximize-build-space@master
       with:
         swap-size-mb: 1024
         temp-reserve-mb: 100
         root-reserve-mb: 1024
+
+    - name: Checkout
+      uses: actions/checkout@main
 
     - name: 克隆源代码
       run: |
@@ -78,8 +70,7 @@ jobs:
         git clone --depth 1 -b $REPO_BRANCH $REPO_URL openwrt
         cd openwrt
         echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
-        # 优化5: 添加错误处理
-        VERSION_INFO=$(git show -s --date=short --format="作者: %an<br/>时间: %cd<br/>内容: %s<br/>hash: %H" 2>/dev/null || echo "获取版本信息失败")
+        VERSION_INFO=$(git show -s --date=short --format="作者: %an<br/>时间: %cd<br/>内容: %s<br/>hash: %H")
         echo "VERSION_INFO=$VERSION_INFO" >> $GITHUB_ENV
 
     - name: 生成变量
@@ -96,8 +87,7 @@ jobs:
 
     - name: 缓存工具链
       if: env.CACHE_TOOLCHAIN == 'true'
-      # 优化6: 固定缓存工具版本
-      uses: HiGarfield/cachewrtbuild@master
+      uses: HiGarfield/cachewrtbuild@main
       with:
         ccache: true
         mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
@@ -135,8 +125,7 @@ jobs:
       run: |
         cd $OPENWRT_PATH
         echo -e "$(nproc) thread compile"
-        # 优化7: 修复重复的编译命令，添加日志输出
-        make -j$(nproc) || make -j1 || make -j1 V=s 2>&1 | tee build.log
+        make -j$(nproc) || make -j1 || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
@@ -145,10 +134,9 @@ jobs:
       if: (!cancelled())
       run: df -hT
 
-    # 优化8: 强化上传前的文件验证
     - name: 将固件上传到Artifact
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true' && hashFiles(format('{0}/bin', env.OPENWRT_PATH)) != ''
-      uses: actions/upload-artifact@v4
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      uses: actions/upload-artifact@main
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
@@ -172,7 +160,7 @@ jobs:
 
     - name: 发布固件到Release
       if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
-      uses: ncipollo/release-action@master
+      uses: ncipollo/release-action@main
       with:
         allowUpdates: true
         tag: ${{ steps.tag.outputs.release_tag }}
@@ -190,13 +178,3 @@ jobs:
           ### 🧊 固件版本
           - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
           - ${{ env.VERSION_INFO }}
-
-    # 优化9: 添加失败日志收集
-    - name: 上传编译日志
-      if: failure() && steps.compile.outcome == 'failure'
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs-${{ env.FILE_DATE }}
-        path: |
-          build.log
-          ${{ env.OPENWRT_PATH }}/.config
