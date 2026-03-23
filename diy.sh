@@ -14,3 +14,7 @@ git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/
 rm -rf feeds/luci/applications/luci-app-passwall
 git clone https://github.com/Openwrt-Passwall/openwrt-passwall package/passwall-luci
 git clone https://github.com/Openwrt-Passwall/openwrt-passwall2 package/passwall2-luci
+
+# 添加design主题和插件包
+git clone https://github.com/gngpp/luci-theme-design.git  package/luci-theme-design
+git clone https://github.com/gngpp/luci-app-design-config.git package/luci-app-design-config
