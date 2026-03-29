@@ -19,6 +19,7 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: X86-64
   TZ: Asia/Shanghai
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   Build:
