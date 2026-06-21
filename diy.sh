@@ -12,8 +12,8 @@ git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/
 
 # 移除 openwrt feeds 过时的luci版本
 rm -rf feeds/luci/applications/luci-app-passwall
-git clone https://github.com/Openwrt-Passwall/openwrt-passwall package/passwall-luci
-git clone https://github.com/Openwrt-Passwall/openwrt-passwall2 package/passwall2-luci
+git clone -b 25.11.15-1 https://github.com/Openwrt-Passwall/openwrt-passwall package/passwall-luci
+git clone -b 25.11.18-1 https://github.com/Openwrt-Passwall/openwrt-passwall2 package/passwall2-luci
 
 # 添加design主题和插件包
 git clone https://github.com/gngpp/luci-theme-design.git  package/luci-theme-design
