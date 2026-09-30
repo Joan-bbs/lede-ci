@@ -1,0 +1,88 @@
+name: Build NanoPi R3S Firmware
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'nanopi-r3s.config'
+      - '.github/workflows/build-nanopi-r3s.yml'
+
+env:
+  REPO_URL: https://github.com/coolsnowwolf/lede
+  REPO_BRANCH: master
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: nanopi-r3s.config
+  DIY_SH: diy.sh
+  UPLOAD_FIRMWARE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 10240
+          swap-size-mb: 1
+          remove-dotnet: true
+          remove-android: true
+          remove-haskell: true
+          remove-codeql: true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+            python3-setuptools rsync swig unzip zlib1g-dev file wget
+
+      - name: Clone source code
+        run: |
+          git clone --depth 1 -b $REPO_BRANCH $REPO_URL lede
+          echo "BUILD_DIR=$GITHUB_WORKSPACE/lede" >> $GITHUB_ENV
+
+      - name: Load custom feeds
+        run: |
+          [ -e "$FEEDS_CONF" ] && cp -f "$FEEDS_CONF" "$BUILD_DIR/feeds.conf.default"
+          chmod +x "$DIY_SH"
+          cd "$BUILD_DIR"
+          "$GITHUB_WORKSPACE/$DIY_SH"
+
+      - name: Update and install feeds
+        run: |
+          cd "$BUILD_DIR"
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Load NanoPi R3S config
+        run: |
+          cp "$GITHUB_WORKSPACE/$CONFIG_FILE" "$BUILD_DIR/.config"
+          cd "$BUILD_DIR"
+          make defconfig
+
+      - name: Download packages
+        run: |
+          cd "$BUILD_DIR"
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Compile firmware
+        id: compile
+        run: |
+          cd "$BUILD_DIR"
+          echo -e "$(nproc) thread compile"
+          make -j$(nproc) || make -j1 V=s
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "FIRMWARE=$BUILD_DIR/bin/targets" >> $GITHUB_ENV
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
+        with:
+          name: nanopi-r3s-firmware
+          path: ${{ env.FIRMWARE }}
