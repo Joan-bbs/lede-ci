@@ -49,6 +49,31 @@ class VersionChecks(unittest.TestCase):
     def test_pinned_source_selected(self):
         checker.source(self.root)
 
+    def test_legacy_encoded_unrelated_makefile(self):
+        other = self.root / "package/other"
+        other.mkdir()
+        # Same byte/offset as the reported Actions failure.
+        (other / "Makefile").write_bytes(b"#" + b" " * 1027 + b"\xa1\nPKG_NAME:=other\n")
+        checker.source(self.root)
+
+    def test_legacy_encoded_pinned_makefile_comment(self):
+        path = self.root / "feeds/passwall/luci-app-passwall/Makefile"
+        path.write_bytes(b"# legacy: \xa1\n" + path.read_bytes())
+        checker.source(self.root)
+
+    def test_legacy_encoding_does_not_hide_wrong_version(self):
+        path = self.root / "feeds/passwall/luci-app-passwall/Makefile"
+        path.write_bytes(b"# legacy: \xa1\nPKG_VERSION:=99.1.1\nPKG_RELEASE:=1\n")
+        with self.assertRaisesRegex(ValueError, "source version"):
+            checker.source(self.root)
+
+    def test_legacy_encoded_duplicate_still_rejected(self):
+        other = self.root / "package/renamed-copy"
+        other.mkdir()
+        (other / "Makefile").write_bytes(b"# legacy: \xa1\nPKG_NAME:=luci-app-passwall\n")
+        with self.assertRaisesRegex(ValueError, "expected one installed source"):
+            checker.source(self.root)
+
     def test_luci_source_shadowing_rejected(self):
         link = self.root / "package/feeds/passwall/luci-app-passwall"
         link.unlink()
@@ -100,8 +125,23 @@ class VersionChecks(unittest.TestCase):
             checker.inventory(self.root)
         self.assertEqual(output.getvalue(), "y luci-app-passwall\nm xray-core\n")
 
+    def test_inventory_accepts_legacy_encoded_descriptions(self):
+        (self.root / "tmp").mkdir()
+        (self.root / "tmp/.packageinfo").write_bytes(
+            b"Package: luci-app-passwall\nDescription: legacy \xa1\n@@\n")
+        (self.root / ".config").write_bytes(b"# legacy \xa1\nCONFIG_PACKAGE_luci-app-passwall=y\n")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            checker.inventory(self.root)
+        self.assertEqual(output.getvalue(), "y luci-app-passwall\n")
+
     def test_verified_artifacts(self):
         self.manifest()
+        checker.artifacts(self.root)
+
+    def test_legacy_encoded_manifest_comment(self):
+        manifest = self.manifest()
+        manifest.write_bytes(b"# legacy \xa1\n" + manifest.read_bytes())
         checker.artifacts(self.root)
 
     def test_wrong_firmware_version_rejected(self):

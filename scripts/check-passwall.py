@@ -18,6 +18,13 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def read_metadata(path):
+    # OpenWrt feeds may contain legacy-encoded comments/descriptions. Preserve
+    # undecodable bytes without losing the ASCII package/version fields we check.
+    # Never skip an unreadable file or disable source/version checks.
+    return path.read_text(encoding="utf-8", errors="surrogateescape")
+
+
 def package_versions(version):
     # Newer luci.mk spells the same release as -r1 instead of -1.
     upstream, release = version.rsplit("-", 1)
@@ -33,7 +40,7 @@ def source(root):
         ).strip()
         require(actual == revision, f"{feed}: commit {actual} != {revision}")
         expected = checkout / package / "Makefile"
-        text = expected.read_text()
+        text = read_metadata(expected)
         values = dict(re.findall(r"^(PKG_VERSION|PKG_RELEASE)\s*:=\s*(\S+)\s*$", text, re.M))
         actual_version = f"{values.get('PKG_VERSION')}-{values.get('PKG_RELEASE')}"
         require(actual_version == version, f"{package}: source version {actual_version} != {version}")
@@ -45,7 +52,7 @@ def source(root):
                 continue
             makefile = Path(directory) / "Makefile"
             if (Path(directory).name == package or re.search(
-                rf"^PKG_NAME\s*:=\s*{re.escape(package)}\s*$", makefile.read_text(), re.M
+                rf"^PKG_NAME\s*:=\s*{re.escape(package)}\s*$", read_metadata(makefile), re.M
             )):
                 candidates.append(makefile)
         require(len(candidates) == 1, f"{package}: expected one installed source, found {candidates}")
@@ -55,7 +62,7 @@ def source(root):
 
 
 def config(root):
-    lines = (root / ".config").read_text().splitlines()
+    lines = read_metadata(root / ".config").splitlines()
     for feed in LOCKS:
         package = f"luci-app-{feed}"
         require(f"CONFIG_PACKAGE_{package}=y" in lines,
@@ -67,9 +74,9 @@ def inventory(root):
     # Only names declared as Package: are packages. CONFIG_PACKAGE_* also
     # contains boolean feature switches such as *_INCLUDE_Xray.
     known = set(re.findall(r"^Package:\s+(\S+)\s*$",
-                           (root / "tmp/.packageinfo").read_text(), re.M))
+                           read_metadata(root / "tmp/.packageinfo"), re.M))
     require(known, "No resolved package metadata; run make defconfig first")
-    selected = re.findall(r"^CONFIG_PACKAGE_(.+)=([ym])$", (root / ".config").read_text(), re.M)
+    selected = re.findall(r"^CONFIG_PACKAGE_(.+)=([ym])$", read_metadata(root / ".config"), re.M)
     for package, mode in sorted(selected):
         if package in known:
             print(f"{mode} {package}")
@@ -79,7 +86,7 @@ def artifacts(root):
     manifests = sorted((root / "bin" / "targets").glob("*/*/*.manifest"))
     require(manifests, "No firmware manifest found; cannot verify installed versions")
     for manifest in manifests:
-        packages = dict(re.findall(r"^(\S+) - (\S+)\s*$", manifest.read_text(), re.M))
+        packages = dict(re.findall(r"^(\S+) - (\S+)\s*$", read_metadata(manifest), re.M))
         for feed, (version, _) in LOCKS.items():
             package = f"luci-app-{feed}"
             require(packages.get(package) in package_versions(version),
