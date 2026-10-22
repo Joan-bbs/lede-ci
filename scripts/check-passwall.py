@@ -8,7 +8,7 @@ import subprocess
 
 
 LOCKS = {
-    "passwall": ("26.1.13-1", "1f589523b33bd312b9cf38394c72493e0fde64ea"),
+    "passwall": ("25.11.15-1", "97d69ab5becbda354e2d3ea5004f09b4db275375"),
     "passwall2": ("25.11.18-1", "dbf48fb5bd9f6e68824800cf418265b42c943c7d"),
 }
 
@@ -63,6 +63,18 @@ def config(root):
         print(f"{package}: selected in firmware")
 
 
+def inventory(root):
+    # Only names declared as Package: are packages. CONFIG_PACKAGE_* also
+    # contains boolean feature switches such as *_INCLUDE_Xray.
+    known = set(re.findall(r"^Package:\s+(\S+)\s*$",
+                           (root / "tmp/.packageinfo").read_text(), re.M))
+    require(known, "No resolved package metadata; run make defconfig first")
+    selected = re.findall(r"^CONFIG_PACKAGE_(.+)=([ym])$", (root / ".config").read_text(), re.M)
+    for package, mode in sorted(selected):
+        if package in known:
+            print(f"{mode} {package}")
+
+
 def artifacts(root):
     manifests = sorted((root / "bin" / "targets").glob("*/*/*.manifest"))
     require(manifests, "No firmware manifest found; cannot verify installed versions")
@@ -84,7 +96,7 @@ def artifacts(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("source", "config", "artifacts"))
+    parser.add_argument("phase", choices=("source", "config", "inventory", "artifacts"))
     parser.add_argument("root", type=Path, help="OpenWrt build root")
     args = parser.parse_args()
     try:

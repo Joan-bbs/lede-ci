@@ -1,6 +1,6 @@
 # Keep these feeds before luci: it also contains packages with the same names.
-# openwrt-passwall tag 26.1.13-1 (immutable commit pin)
-src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall^1f589523b33bd312b9cf38394c72493e0fde64ea
+# openwrt-passwall tag 25.11.15-1 (immutable commit pin)
+src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall^97d69ab5becbda354e2d3ea5004f09b4db275375
 # openwrt-passwall2 tag 25.11.18-1 (immutable commit pin)
 src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2^dbf48fb5bd9f6e68824800cf418265b42c943c7d
 src-git packages https://github.com/coolsnowwolf/packages

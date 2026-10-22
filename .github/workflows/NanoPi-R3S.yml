@@ -130,6 +130,10 @@ jobs:
         make defconfig
         python3 "$GITHUB_WORKSPACE/scripts/check-passwall.py" source "$OPENWRT_PATH"
         python3 "$GITHUB_WORKSPACE/scripts/check-passwall.py" config "$OPENWRT_PATH"
+        # This list includes dependencies/defaults resolved by Kconfig.
+        mkdir -p bin
+        python3 "$GITHUB_WORKSPACE/scripts/check-passwall.py" inventory "$OPENWRT_PATH" > bin/build-packages.txt
+        cp .config bin/build.config
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -168,6 +172,7 @@ jobs:
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
         cp "$OPENWRT_PATH/bin/passwall-versions.txt" .
+        cp "$OPENWRT_PATH/bin/build-packages.txt" .
         mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages
         tar -zcf Packages.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
@@ -196,7 +201,7 @@ jobs:
           - 💝 源码分支: ${{ env.REPO_BRANCH }}
           - 🌐 默认地址: 192.168.8.1
           - 🔑 默认密码: password
-          - PassWall: `26.1.13-1`（已校验固件 manifest）
+          - PassWall: `25.11.15-1`（已校验固件 manifest）
           - PassWall2: `25.11.18-1`（已校验固件 manifest）
           - 工作流分支: `${{ github.ref_name }}`
           ### 🧊 固件版本

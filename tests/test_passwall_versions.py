@@ -1,5 +1,7 @@
 """Regression checks for source shadowing and publishing incorrect firmware."""
 import importlib.util
+import contextlib
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -86,14 +88,26 @@ class VersionChecks(unittest.TestCase):
             "CONFIG_PACKAGE_luci-app-passwall=y\nCONFIG_PACKAGE_luci-app-passwall2=y\n")
         checker.config(self.root)
 
+    def test_inventory_excludes_feature_switches(self):
+        (self.root / "tmp").mkdir()
+        (self.root / "tmp/.packageinfo").write_text(
+            "Package: luci-app-passwall\nPackage: xray-core\nPackage: unselected\n")
+        (self.root / ".config").write_text(
+            "CONFIG_PACKAGE_luci-app-passwall=y\nCONFIG_PACKAGE_xray-core=m\n"
+            "CONFIG_PACKAGE_luci-app-passwall_INCLUDE_Xray=y\n")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            checker.inventory(self.root)
+        self.assertEqual(output.getvalue(), "y luci-app-passwall\nm xray-core\n")
+
     def test_verified_artifacts(self):
         self.manifest()
         checker.artifacts(self.root)
 
     def test_wrong_firmware_version_rejected(self):
         manifest = self.manifest()
-        manifest.write_text(manifest.read_text().replace("26.1.13-1", "26.10.22-1"))
-        with self.assertRaisesRegex(ValueError, "expected 26.1.13-1"):
+        manifest.write_text(manifest.read_text().replace("25.11.15-1", "26.10.22-1"))
+        with self.assertRaisesRegex(ValueError, "expected 25.11.15-1"):
             checker.artifacts(self.root)
 
     def test_luci_release_prefix_accepted(self):
